@@ -1,8 +1,4 @@
-Aqui está o README completo, projetado especificamente para atuar como um "ímã de recrutadores". Ele foi estruturado para demonstrar visão de negócios (redução de custos), habilidades de arquitetura avançada (design de linguagens/DSL) e resiliência de sistemas (Circuit Breaker).
 
-O arquivo inclui a versão em **Português** e, logo abaixo, a versão em **Inglês** (ideal para vagas internacionais).
-
----
 
 # 🇧🇷 VERSÃO EM PORTUGUÊS
 
