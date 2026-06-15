@@ -1,5 +1,3 @@
-
-
 # 🇧🇷 VERSÃO EM PORTUGUÊS
 
 # 🧠 KoreAI: O Core de Orquestração para LLMs
