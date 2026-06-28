@@ -445,7 +445,7 @@ Esta seção detalha as decisões de engenharia por trás de cada componente do 
 
 *O cérebro do sistema. Aqui transformamos texto em lógica de infraestrutura.*
 
-* **`parser/lexer.py` & `parser.py**`: Compilação. O uso de uma DSL (`.kore`) permite que o time de infra configure o sistema sem tocar em código binário.
+* **parser/lexer.py** & **parser.py**`: Compilação. O uso de uma DSL (`.kore`) permite que o time de infra configure o sistema sem tocar em código binário.
 * **`policies/production.kore`**: IaC. A declaração do estado desejado da infraestrutura.
 * **`proto/kore.proto`**: Comunicação robusta. gRPC para garantir troca de mensagens entre Python e Go com contrato de dados rígido.
 * **`interface/chat_agent.py`**: IA para IA. Agente de suporte interno que usa os próprios modelos para debugar logs.
