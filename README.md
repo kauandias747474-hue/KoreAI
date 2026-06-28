@@ -399,7 +399,159 @@ app.post('/v1/chat/completions', async (req, res) => {
 
 ---
 
+#  Architecture & Decision Log (PT-BR)
 
+Esta seção detalha as decisões de engenharia por trás de cada componente do KoreAI. Nosso foco é: **Alta performance (Go), Segurança Zero-Trust, e Infraestrutura como Código (KoreScript).**
+
+### 1. Control Plane (Frontend - Next.js)
+
+*O objetivo aqui é a observabilidade. Usamos Next.js pela renderização híbrida e Shadcn/ui pela consistência visual.*
+
+| Arquivo | Decisão Técnica |
+| --- | --- |
+| `app/layout.tsx` & `page.tsx` | **Roteamento:** Adotamos o App Router para melhor performance e SEO. |
+| `dashboard/page.tsx` | **UI:** O painel de controle centraliza a telemetria, garantindo que o DevOps tenha foco total no tráfego de IA. |
+| `forms/create-policy-form.tsx` | **UX/Segurança:** Formulário tipado para evitar erros humanos na criação de políticas críticas. |
+| `ui/dashboard-shell.tsx` | **Design:** Componentização para manter a UI consistente e reduzir a repetição de código (DRY). |
+| `charts/*.tsx` | **Visualização:** Recharts para renderizar dados complexos com baixo custo computacional. |
+| `security/guardian-status.tsx` | **Observabilidade:** Monitoramento do Guardian.io integrado para reação imediata a incidentes. |
+| `hooks/use-telemetry.ts` | **Performance:** Polling otimizado para não sobrecarregar a rede do cliente. |
+| `lib/utils.ts` | **Manutenibilidade:** Padronização de classes Tailwind para manter o design system limpo. |
+| `schemas/kore-policy-schema.ts` | **Segurança:** Zod garante que nenhum payload malformado chegue ao backend (Validation-at-the-Edge). |
+| `store/use-titan-store.ts` | **State:** Zustand para gerenciamento de estado global sem o *boilerplate* e o *overhead* do Redux. |
+
+### 2. Motor Anti-Caos (Guardian.io)
+
+*Fundação de segurança focada em isolamento de tenants e conformidade.*
+
+* **`proxy/security/guardian_middleware.go`**: Interceptação em C-level speed. O Go permite checagem de header em < 1ms, essencial para evitar *data leaks*.
+* **`proxy/security/isolation_engine.go`**: Lógica de "containerização de dados". Garante que o contexto da query não vaze entre tenants.
+* **`proxy/security/audit_logger.go`**: Imutabilidade. Logs de segurança são o padrão ouro para conformidade (compliance).
+* **`security/tenant_registry.py`**: A *Source of Truth* de acesso. Separação clara entre a política (Python) e a execução (Go).
+* **`security/policy_validator.py`**: Validação estática. Evita que regras inseguras entrem em produção (Fail-Fast).
+
+### 3. Edge Gateway (Go)
+
+*Performance extrema. O Go foi escolhido por sua capacidade de lidar com I/O intensivo.*
+
+* **`proxy/main.go`**: Entrypoint. O uso de `net/http` padrão garante estabilidade e facilidade de deploy.
+* **`proxy/proxyconnector.go`**: Abstração de API. O Go atua como um adaptador de protocolo entre o mundo externo e o ecossistema Ollama.
+* **`proxy/cache.go`**: Otimização de Custo. O Cache Semântico reduz o gasto com tokens, otimizando o ROI da infraestrutura.
+* **`proxy/circuitbreaker.go`**: Resiliência. Implementa o padrão de *Failover* para garantir 99.9% de uptime, mesmo se o modelo local falhar.
+* **`proxy/metrics.go`**: Exportação de telemetria. Essencial para analisar o *Time-to-First-Token* (TTFT).
+* **`core/types/gateway-types.go`**: Tipagem Forte. Garante que contratos de dados sejam respeitados em todo o pipeline.
+
+### 4. DSL & Ecossistema (Python)
+
+*O cérebro do sistema. Aqui transformamos texto em lógica de infraestrutura.*
+
+* **`parser/lexer.py` & `parser.py**`: Compilação. O uso de uma DSL (`.kore`) permite que o time de infra configure o sistema sem tocar em código binário.
+* **`policies/production.kore`**: IaC. A declaração do estado desejado da infraestrutura.
+* **`proto/kore.proto`**: Comunicação robusta. gRPC para garantir troca de mensagens entre Python e Go com contrato de dados rígido.
+* **`interface/chat_agent.py`**: IA para IA. Agente de suporte interno que usa os próprios modelos para debugar logs.
+* **`openclaw/openclaw_bridge.py`**: Interoperabilidade. Extensibilidade para sistemas externos.
+
+---
+
+# 📚 Architecture & Decision Log (EN-US)
+
+This section outlines the engineering decisions behind KoreAI. Our core pillars: **High Performance (Go), Zero-Trust Security, and Infrastructure as Code (KoreScript).**
+
+### 1. Control Plane (Frontend - Next.js)
+
+*Focus: Observability. We selected Next.js for its hybrid rendering capabilities and Shadcn/ui for consistent, enterprise-grade visuals.*
+
+| File | Technical Decision |
+| --- | --- |
+| `app/layout.tsx` & `page.tsx` | **Routing:** App Router for optimal performance and SEO. |
+| `dashboard/page.tsx` | **UI:** Centralizes telemetry, allowing DevOps to focus on AI traffic. |
+| `forms/create-policy-form.tsx` | **UX/Safety:** Typed forms to prevent human error when defining critical AI policies. |
+| `ui/dashboard-shell.tsx` | **Design:** Component-based architecture to ensure UI consistency and DRY code. |
+| `charts/*.tsx` | **Visualization:** Recharts for low-overhead, complex data rendering. |
+| `security/guardian-status.tsx` | **Observability:** Real-time Guardian.io monitoring for instant incident response. |
+| `hooks/use-telemetry.ts` | **Performance:** Optimized polling to prevent network congestion. |
+| `lib/utils.ts` | **Maintainability:** Standardized Tailwind classes for a cohesive design system. |
+| `schemas/kore-policy-schema.ts` | **Security:** Zod-based validation ensuring malformed payloads are dropped at the edge. |
+| `store/use-titan-store.ts` | **State:** Zustand for global state without Redux boilerplate and overhead. |
+
+### 2. Anti-Chaos Engine (Guardian.io)
+
+*Foundation: Zero-Trust isolation and compliance.*
+
+* **`proxy/security/guardian_middleware.go`**: Edge performance. Go's low-latency allows header checks in < 1ms to prevent data leaks.
+* **`proxy/security/isolation_engine.go`**: Data containerization. Ensures query contexts cannot leak between tenants.
+* **`proxy/security/audit_logger.go`**: Immutability. Security logs are the gold standard for regulatory compliance.
+* **`security/tenant_registry.py`**: Source of Truth. Clear separation between policy logic (Python) and edge execution (Go).
+* **`security/policy_validator.py`**: Static analysis. Prevents insecure rules from ever reaching production (Fail-Fast).
+
+### 3. Edge Gateway (Go)
+
+*Performance: Go was chosen for its high-concurrency capability in I/O-bound tasks.*
+
+* **`proxy/main.go`**: Entrypoint. Standard `net/http` ensures deployment stability.
+* **`proxy/proxyconnector.go`**: API Abstraction. Acts as a protocol adapter between the world and the Ollama ecosystem.
+* **`proxy/cache.go`**: Cost optimization. Semantic caching reduces token usage and boosts ROI.
+* **`proxy/circuitbreaker.go`**: Resilience. Implements failover patterns for high availability, even during model outages.
+* **`proxy/metrics.go`**: Telemetry. Vital for monitoring Time-to-First-Token (TTFT).
+* **`core/types/gateway-types.go`**: Strong typing. Ensures data contracts are respected across the pipeline.
+
+### 4. DSL & AI Ecosystem (Python)
+
+*The Brain: Transforming human-readable text into infrastructure logic.*
+
+* **`parser/lexer.py` & `parser.py**`: Compilation. Using a DSL (`.kore`) enables infra teams to configure the system without touching binary code.
+* **`policies/production.kore`**: IaC. Declarative state of the infrastructure.
+* **`proto/kore.proto`**: Robust communication. gRPC ensures strict data contracts between Python and Go.
+* **`interface/chat_agent.py`**: AI for AI. Internal support agent using local models to debug infra logs.
+* **`openclaw/openclaw_bridge.py`**: Interoperability. Extensibility for external ecosystem integration.
+
+---
+
+# 🎓 Fundamentos Teóricos Aplicados | Applied Theoretical Foundations
+
+Esta seção cobre os pilares de Ciência da Computação, Arquitetura de Software e Engenharia de Código que sustentam o KoreAI.
+
+---
+
+### 1. Teoria da Computação e Compiladores | Compiler Theory & DSL Design
+
+**PT-BR:** Para criar o KoreScript, aplicamos técnicas de **Teoria de Linguagens Formais**. O Lexer transforma o texto em tokens através de análise léxica (padrões regulares). O Parser transforma essa lista de tokens em uma **Abstract Syntax Tree (AST)**, permitindo que o computador entenda a estrutura hierárquica das políticas. Isso é o coração de qualquer compilador ou interpretador.
+
+**EN:** To build KoreScript, we applied **Formal Language Theory**. The Lexer converts text into tokens via lexical analysis (regex patterns). The Parser then converts this token stream into an **Abstract Syntax Tree (AST)**, allowing the computer to understand the hierarchical policy structure. This is the core mechanism behind any compiler or interpreter.
+
+---
+
+### 2. Padrões de Arquitetura de Sistemas | System Architecture Patterns
+
+**PT-BR:** Utilizamos o **Proxy Pattern** para interceptar chamadas entre o cliente e o serviço, permitindo a injeção de lógica (Cache, Segurança). Também aplicamos o **Circuit Breaker Pattern**, que é fundamental em sistemas distribuídos para evitar falhas em cascata; se o serviço de IA falha, o sistema "abre o circuito" e redireciona o tráfego para um fallback, garantindo resiliência.
+
+**EN:** We utilized the **Proxy Pattern** to intercept calls between the client and the service, enabling logic injection (Cache, Security). We also applied the **Circuit Breaker Pattern**, which is fundamental in distributed systems to prevent cascading failures; if the AI service fails, the system "opens the circuit" and reroutes traffic to a fallback, ensuring resilience.
+
+---
+
+### 3. Segurança e Zero-Trust | Security and Zero-Trust Architecture
+
+**PT-BR:** O Guardian.io segue o princípio de **Zero-Trust**. Na segurança da informação, isso significa "nunca confiar, sempre verificar". Implementamos isso através de um **Middleware de Autenticação** que valida a identidade do Tenant (`x-tenant-id`) a cada requisição na borda (Edge), garantindo o **Isolamento de Tenant** (Multi-tenancy isolation).
+
+**EN:** The Guardian.io follows the **Zero-Trust** principle. In information security, this means "never trust, always verify." We implemented this through an **Authentication Middleware** that validates the Tenant identity (`x-tenant-id`) on every request at the Edge, ensuring **Multi-tenancy isolation**.
+
+---
+
+### 4. Clean Code e SOLID | Software Engineering Principles
+
+**PT-BR:** Aplicamos **SOLID**, com foco especial no **Single Responsibility Principle (SRP)**. Cada arquivo em nosso projeto tem uma única responsabilidade: o `lexer.py` só faz análise léxica, o `cache.go` só gerencia o cache. Isso torna o código desacoplado e fácil de testar. Também seguimos o **DRY (Don't Repeat Yourself)** ao centralizar utilitários em `lib/utils.ts`.
+
+**EN:** We applied **SOLID**, with a specific focus on the **Single Responsibility Principle (SRP)**. Each file in our project has one single responsibility: `lexer.py` only performs lexical analysis, `cache.go` only manages caching. This makes the code decoupled and testable. We also follow **DRY (Don't Repeat Yourself)** by centralizing utilities in `lib/utils.ts`.
+
+---
+
+### 5. Sistemas Distribuídos e Performance | Distributed Systems & Performance
+
+**PT-BR:** A escolha do Go para o Gateway baseia-se no modelo de concorrência por **Goroutines** e canais (Communicating Sequential Processes - CSP). Isso nos permite processar I/O pesado (rede) com latência ultrabaixa. Além disso, o **Semantic Caching** é uma otimização de performance onde não comparamos strings, mas vetores de intenção (embeddings), o que é a base da inteligência artificial moderna.
+
+**EN:** The choice of Go for the Gateway is based on its concurrency model using **Goroutines** and channels (Communicating Sequential Processes - CSP). This allows us to process heavy I/O (network) with ultra-low latency. Furthermore, **Semantic Caching** is a performance optimization where we don't compare strings, but intention vectors (embeddings), which is the foundation of modern artificial intelligence.
+
+---
 
 ## 👤 About the Author & Contact
 
